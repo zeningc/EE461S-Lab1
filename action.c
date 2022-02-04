@@ -77,11 +77,11 @@ int executeTwoChild(char *left, char *right) {
     return 0;
 }
 
-void grantTerminalControl()   {
-    if (tcsetpgrp(STDIN_FILENO, getpid()) != 0)
+void grantTerminalControl(pid_t pid)   {
+    if (tcsetpgrp(STDIN_FILENO, pid) != 0)
         perror("tcsetpgrp() error");
-    if (tcsetpgrp(STDOUT_FILENO, getpid()) != 0)
+    if (tcsetpgrp(STDOUT_FILENO, pid) != 0)
         perror("tcsetpgrp() error");
-    if (tcsetpgrp(STDERR_FILENO, getpid()) != 0)
+    if (tcsetpgrp(STDERR_FILENO, pid) != 0)
         perror("tcsetpgrp() error");
 }

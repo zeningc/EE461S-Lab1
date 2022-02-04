@@ -11,7 +11,6 @@ typedef struct job {
     int status; // 0 as Running, 1 as Stopped, 2 as Done
     struct job *next;
     int id;
-    int detached;
 } job;
 
 typedef struct stack {
@@ -21,15 +20,16 @@ typedef struct stack {
 
 stack *createStack();
 void addToStack(stack *stk, job *node);
-void removeFromStack(stack *stk, job *node);
-job* addJob(stack *stk, char *jStr, int pgid, int status, int detached);
+void removeFromStack(job *node);
+job* addJob(stack *stk, char *jStr, int pgid, int status);
+void listJob(stack *stk, job *j);
 void listAllJobs(stack *stk);
+void listDoneJobs(stack *stk);
 void removeDoneJobs(stack *stk);
-void listDetachedDoneJobs(stack * stk);
-void detach(job *j);
-void unDetach(job *j);
 void stop(job *j);
 void done(job *j);
+void run(job *j);
 job* findByPgid(stack *stk, pid_t pgid);
-
+job* getFirstStopJob(stack *stk);
+job* getFirstJob(stack *stk);
 #endif //LAB1_JOB_H

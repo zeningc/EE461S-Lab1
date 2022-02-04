@@ -8,6 +8,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <fcntl.h>
+#include <signal.h>
 
 stack *stk;
 
@@ -15,8 +16,9 @@ static void sigchldHandler(int signum) {
     pid_t pid;
     while ((pid = waitpid(-1, (int *) NULL, WNOHANG)) > 0) {
         job *j = findByPgid(stk, pid);
-        if (j != NULL)
+        if (j != NULL) {
             done(j);
+        }
     }
 }
 
@@ -43,11 +45,47 @@ int main(void) {
             removeDoneJobs(stk);
             continue;
         }
+
+        listDoneJobs(stk);
+        removeDoneJobs(stk);
+
         if (strcmp(inStr, "fg") == 0) {
+            job *j = getFirstJob(stk);
+            listJob(stk, j);
+            if (j->status == 1) {
+                kill(-j->pgid, SIGCONT);
+                run(j);
+            }
+            grantTerminalControl(j->pgid);
+            int status = 0;
+            waitpid(j->pgid, &status, WUNTRACED);
+            /*
+             * after the child process exit, should take control of stdin stdout stderr again
+             * */
+            grantTerminalControl(getpid());
+            if (WIFEXITED(status)) {
+                done(j);
+                removeFromStack(j);
+                continue;
+            }
+            printf("\n");
+            int exitSig = WSTOPSIG(status);
+            if (exitSig == SIGTSTP)
+                stop(j);
+            else {
+                done(j);
+                removeFromStack(j);
+            }
             continue;
         }
 
         if (strcmp(inStr, "bg") == 0) {
+            job *j = getFirstStopJob(stk);
+            listJob(stk, j);
+            if (j == NULL)
+                continue;
+            run(j);
+            kill(-j->pgid, SIGCONT);
             continue;
         }
         char *cmd = (char *) malloc(2000 * sizeof(char));
@@ -66,7 +104,6 @@ int main(void) {
         int cmdCnt = parseRawCMD(cmd, &left, &right);
         // 5. Execute the commands using execvp or execlp - e.g. execOneChild()
         // or execTwoChildren()
-//        printf("shell process %d running\n", getpid());
         signal(SIGINT, SIG_DFL);
         signal(SIGTSTP, SIG_DFL);
         pid_t cpid = fork();
@@ -75,7 +112,7 @@ int main(void) {
                 perror("setpgid() error");
             }
             if (andSignIndex == -1) {
-                grantTerminalControl();
+                grantTerminalControl(getpid());
             }
 
             if (cmdCnt == 1)
@@ -84,35 +121,36 @@ int main(void) {
                 executeTwoChild(left, right);
             exit(0);
         } else {
-            job *currJob = addJob(stk, inStr, cpid, 0, andSignIndex == -1 ? 0 : 1);
-            /*
-             * after the child process exit, should take control of stdin stdout stderr again
-             * */
+            job *currJob = addJob(stk, inStr, cpid, 0);
             signal(SIGINT, SIG_IGN);
             signal(SIGTSTP, SIG_IGN);
-
             if (andSignIndex == -1) {
                 //when the cmd is without & sign
                 int status = 0;
                 waitpid(cpid, &status, WUNTRACED);
-                grantTerminalControl();
-
-                int exitSig = WSTOPSIG(status);
-
-                printf("quiting signum %d\n", exitSig);
-                if (exitSig == SIGTSTP) {
-                    stop(currJob);
-                }
-                else if (exitSig == SIGINT) {
+                /*
+                 * after the child process exit, should take control of stdin stdout stderr again
+                 * */
+                grantTerminalControl(getpid());
+                if (WIFEXITED(status)) {
                     done(currJob);
+                    removeFromStack(currJob);
+                    continue;
                 }
+                printf("\n");
+                int exitSig = WSTOPSIG(status);
+                if (exitSig == SIGTSTP)
+                    stop(currJob);
+                else {
+                    done(currJob);
+                    removeFromStack(currJob);
+                }
+
             }
         }
 
         // 6. NOTE: There are other steps for job related stuff but good luck
         // we won't spell it out for you
-        listDetachedDoneJobs(stk);
-        removeDoneJobs(stk);
     }
 
 }

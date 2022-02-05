@@ -60,13 +60,22 @@ job* addJob(stack *stk, char *jStr, int pgid, int status) {
     return j;
 }
 
+void listFgJob(job *j)    {
+    if (j == NULL)
+        return;
+    char *ou = (char *) malloc(3000 * sizeof (char));
+    sprintf(ou, "%s\n", j->jStr);
+    write(STDOUT_FILENO, ou, strlen(ou));
+}
 
-void listJob(stack *stk, job *j)    {
+void listBgJob(stack *stk, job *j)    {
+    if (j == NULL)
+        return;
     char *ou = (char *) malloc(3000 * sizeof (char));
     char ch = '-';
     if (j->prev == stk->head)
         ch = '+';
-    sprintf(ou, "[%d]%c\t%s\t%s\t%d\n", j->id, ch, statusTbl[j->status], j->jStr, j->pgid);
+    sprintf(ou, "[%d]%c\t%s &\n", j->id, ch, j->jStr);
     write(STDOUT_FILENO, ou, strlen(ou));
 }
 

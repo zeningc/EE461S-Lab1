@@ -11,14 +11,21 @@
 #include <signal.h>
 
 stack *stk;
-
+/*
+ * handler will go before any wait()
+ * */
 static void sigchldHandler(int signum) {
     pid_t pid;
-    while ((pid = waitpid(-1, (int *) NULL, WNOHANG)) > 0) {
+    int status = 0;
+    while ((pid = waitpid(-1, &status, WNOHANG)) > 0) {
         job *j = findByPgid(stk, pid);
         if (j != NULL) {
-            done(j);
+            if (WEXITSTATUS(status) == EXIT_SUCCESS)    {
+                done(j);
+                continue;
+            }
         }
+        status = 0;
     }
 }
 
@@ -40,50 +47,48 @@ int main(void) {
 
         // 3. Check for job control tokens (fg, bg, jobs, &) (for now just
         // ignore those commands)
+        listDoneJobs(stk);
+        removeDoneJobs(stk);
         if (strcmp(inStr, "jobs") == 0) {
             listAllJobs(stk);
-            removeDoneJobs(stk);
             continue;
         }
 
-        listDoneJobs(stk);
-        removeDoneJobs(stk);
 
         if (strcmp(inStr, "fg") == 0) {
             job *j = getFirstJob(stk);
-            listJob(stk, j);
+            if (j == NULL)
+                continue;
+            listFgJob(j);
             if (j->status == 1) {
                 kill(-j->pgid, SIGCONT);
                 run(j);
             }
             grantTerminalControl(j->pgid);
             int status = 0;
+            // will catch sigint as well
             waitpid(j->pgid, &status, WUNTRACED);
             /*
              * after the child process exit, should take control of stdin stdout stderr again
              * */
             grantTerminalControl(getpid());
-            if (WIFEXITED(status)) {
-                done(j);
-                removeFromStack(j);
+            int exitSig = WSTOPSIG(status);
+            if (exitSig == SIGTSTP || exitSig == SIGINT) {
+                printf("\n");
+            }
+            if (exitSig == SIGTSTP) {
+                stop(j);
                 continue;
             }
-            printf("\n");
-            int exitSig = WSTOPSIG(status);
-            if (exitSig == SIGTSTP)
-                stop(j);
-            else {
-                done(j);
-                removeFromStack(j);
-            }
+            removeFromStack(j);
             continue;
         }
 
         if (strcmp(inStr, "bg") == 0) {
             job *j = getFirstStopJob(stk);
-            listJob(stk, j);
             if (j == NULL)
                 continue;
+            listBgJob(stk, j);
             run(j);
             kill(-j->pgid, SIGCONT);
             continue;
@@ -119,7 +124,7 @@ int main(void) {
                 executeOneChild(left, 0, 0, 0, 0);
             else
                 executeTwoChild(left, right);
-            exit(0);
+            exit(EXIT_FAILURE);
         } else {
             job *currJob = addJob(stk, inStr, cpid, 0);
             signal(SIGINT, SIG_IGN);
@@ -127,28 +132,21 @@ int main(void) {
             if (andSignIndex == -1) {
                 //when the cmd is without & sign
                 int status = 0;
+                // will catch sigint as well
                 waitpid(cpid, &status, WUNTRACED);
                 /*
                  * after the child process exit, should take control of stdin stdout stderr again
                  * */
                 grantTerminalControl(getpid());
-                if (WIFEXITED(status)) {
-                    done(currJob);
-                    removeFromStack(currJob);
+                int exitSig = WSTOPSIG(status);
+                printf("\n");
+                if (exitSig == SIGTSTP) {
+                    stop(currJob);
                     continue;
                 }
-                printf("\n");
-                int exitSig = WSTOPSIG(status);
-                if (exitSig == SIGTSTP)
-                    stop(currJob);
-                else {
-                    done(currJob);
-                    removeFromStack(currJob);
-                }
-
+                removeFromStack(currJob);
             }
         }
-
         // 6. NOTE: There are other steps for job related stuff but good luck
         // we won't spell it out for you
     }

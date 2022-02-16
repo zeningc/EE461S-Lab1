@@ -157,10 +157,15 @@ job* getFirstStopJob(stack *stk)   {
     return NULL;
 };
 
-job* getFirstJob(stack *stk)    {
-    if (stk->head->next == stk->head)
-        return NULL;
-    return stk->head->next;
+job* getFirstUndoneJob(stack *stk)    {
+    job *curr = stk->head->next;
+    while (curr != stk->head) {
+        if (curr->status != 2)  {
+            return curr;
+        }
+        curr = curr->next;
+    }
+    return NULL;
 }
 
 

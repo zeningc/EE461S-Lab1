@@ -3,6 +3,7 @@
 //
 #include <string.h>
 #include <stdlib.h>
+#include <stdio.h>
 
 char **parseStr(char *inStr)
 {
@@ -60,9 +61,21 @@ int parseRawCMD(char *inStr, char** left, char** right)    {
     }
     int n = strlen(inStr);
     char *src = (char *)malloc(2000 * sizeof(char));
-    strncpy(src, inStr, pipeIndex);
+    int t = pipeIndex - 1;
+    while (t > 0 && inStr[t] == ' ')
+        t--;
+
+    strncpy(src, inStr, t + 1);
     char *dest = (char *)malloc(2000 * sizeof(char));
-    strncpy(dest, inStr + pipeIndex + 1, n - pipeIndex - 1);
+    int leftStart = pipeIndex + 1;
+    while (leftStart < n && inStr[leftStart] == ' ')
+        leftStart++;
+    int rightStart = n - 1;
+    while (rightStart > pipeIndex && inStr[rightStart] == ' ')
+        rightStart--;
+
+    strncpy(dest, inStr + leftStart, rightStart - leftStart + 1);
+//    printf("%sX%s\n", src, dest);
     *left = src;
     *right = dest;
     return 2;
@@ -77,6 +90,13 @@ int parseAndSign(char *inStr)   {
     if (*(inStr + n - 1) == '&')
         return n - 1;
     return -1;
+}
+
+int checkCmd(char *inStr)   {
+    if (inStr[0] == '\0' || inStr == NULL) {
+        return 1;
+    }
+    return 0;
 }
 //
 //int main()  {

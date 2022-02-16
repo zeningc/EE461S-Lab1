@@ -37,13 +37,14 @@ void executeOneChild(char *inStr, int r, int rfd, int w, int wfd) {
             if (flag == STDIN_FILENO)
                 fd = open(*t, O_RDONLY, 0644);
             else
-                fd = open(*t, O_CREAT | O_RDWR, 0644);
+                fd = open(*t, O_CREAT | O_WRONLY, 0644);
             if (fd == -1)   {
-                perror("open() error");
+//                perror("open() error");
                 exit(EXIT_FAILURE);
             }
 
             dup2(fd, flag);
+            flag = -1;
         }
         t++;
         index++;
@@ -64,7 +65,6 @@ void executeOneChild(char *inStr, int r, int rfd, int w, int wfd) {
     // exec() will not return if success
     if(execvp(parseRet[0], parseRet) == -1)
         exit(EXIT_FAILURE);
-
     // will never execute
     exit(EXIT_SUCCESS);
 }
@@ -72,19 +72,29 @@ void executeOneChild(char *inStr, int r, int rfd, int w, int wfd) {
 void executeTwoChild(char *left, char *right) {
     int pipefd[2];
     pipe(pipefd);
+//    printf("%sX%sY\n", left, right);
     pid_t cpid = fork();
-    if (cpid == 0) {
-        close(pipefd[1]);
-        executeOneChild(right, 1, pipefd[0], 0, 0);
-        // will never execute the following line when success
-        close(pipefd[0]);
-        exit(EXIT_FAILURE);
-    } else {
+    if (cpid == 0)  {
         close(pipefd[0]);
         executeOneChild(left, 0, 0, 1, pipefd[1]);
         // will never execute the following line when success
         close(pipefd[1]);
         exit(EXIT_FAILURE);
+    }
+    else    {
+        cpid = fork();
+        if (cpid == 0) {
+            close(pipefd[1]);
+            executeOneChild(right, 1, pipefd[0], 0, 0);
+            // will never execute the following line when success
+            close(pipefd[0]);
+            exit(EXIT_FAILURE);
+        } else {
+            close(pipefd[0]);
+            close(pipefd[1]);
+            while (waitpid(-1, (int *)NULL, WNOHANG) != -1);
+            exit(EXIT_SUCCESS);
+        }
     }
 }
 

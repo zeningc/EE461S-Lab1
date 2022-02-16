@@ -32,5 +32,5 @@ void done(job *j);
 void run(job *j);
 job* findByPgid(stack *stk, pid_t pgid);
 job* getFirstStopJob(stack *stk);
-job* getFirstJob(stack *stk);
+job* getFirstUndoneJob(stack *stk);
 #endif //LAB1_JOB_H

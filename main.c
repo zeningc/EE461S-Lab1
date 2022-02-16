@@ -56,7 +56,7 @@ int main(void) {
 
 
         if (strcmp(inStr, "fg") == 0) {
-            job *j = getFirstJob(stk);
+            job *j = getFirstUndoneJob(stk);
             if (j == NULL)
                 continue;
             listFgJob(j);
@@ -73,9 +73,6 @@ int main(void) {
              * */
             grantTerminalControl(getpid());
             int exitSig = WSTOPSIG(status);
-            if (exitSig == SIGTSTP || exitSig == SIGINT) {
-                printf("\n");
-            }
             if (exitSig == SIGTSTP) {
                 stop(j);
                 continue;
@@ -93,6 +90,8 @@ int main(void) {
             kill(-j->pgid, SIGCONT);
             continue;
         }
+        if (checkCmd(inStr) != 0)
+            continue;
         char *cmd = (char *) malloc(2000 * sizeof(char));
         strcpy(cmd, inStr);
         int andSignIndex = parseAndSign(inStr);
@@ -113,6 +112,7 @@ int main(void) {
         signal(SIGTSTP, SIG_DFL);
         pid_t cpid = fork();
         if (cpid == 0) {
+            signal(SIGCHLD, SIG_DFL);
             if (setpgid(0, 0) != 0) {
                 perror("setpgid() error");
             }
@@ -132,14 +132,13 @@ int main(void) {
             if (andSignIndex == -1) {
                 //when the cmd is without & sign
                 int status = 0;
-                // will catch sigint as well
+                // wait for all child process to terminate/stop
                 waitpid(cpid, &status, WUNTRACED);
                 /*
                  * after the child process exit, should take control of stdin stdout stderr again
                  * */
                 grantTerminalControl(getpid());
                 int exitSig = WSTOPSIG(status);
-                printf("\n");
                 if (exitSig == SIGTSTP) {
                     stop(currJob);
                     continue;

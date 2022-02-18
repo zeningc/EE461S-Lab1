@@ -87,7 +87,10 @@ void listAllJobs(stack *stk) {
         job *next = curr->prev;
         if (next == stk->head)
             ch = '+';
-        sprintf(ou, "[%d]%c\t%s\t%s\n", curr->id, ch, statusTbl[curr->status], curr->jStr);
+        if (curr->status == 0 || curr->status == 2)
+            sprintf(ou, "[%d]%c\t%s\t%s &\n", curr->id, ch, statusTbl[curr->status], curr->jStr);
+        else if (curr->status == 1)
+            sprintf(ou, "[%d]%c\t%s\t%s\n", curr->id, ch, statusTbl[curr->status], curr->jStr);
         write(STDOUT_FILENO, ou, strlen(ou));
         curr = next;
     }
@@ -102,7 +105,7 @@ void listDoneJobs(stack *stk)   {
         if (curr->status == 2)  {
             if (next == stk->head)
                 ch = '+';
-            sprintf(ou, "[%d]%c\t%s\t%s\n", curr->id, ch, statusTbl[curr->status], curr->jStr);
+            sprintf(ou, "[%d]%c\t%s\t%s &\n", curr->id, ch, statusTbl[curr->status], curr->jStr);
             write(STDOUT_FILENO, ou, strlen(ou));
         }
         curr = next;
@@ -153,6 +156,7 @@ job* getFirstStopJob(stack *stk)   {
         if (curr->status == 1)  {
             return curr;
         }
+        curr = curr->next;
     }
     return NULL;
 };
@@ -167,5 +171,3 @@ job* getFirstUndoneJob(stack *stk)    {
     }
     return NULL;
 }
-
-

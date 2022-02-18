@@ -7,7 +7,7 @@
 
 char **parseStr(char *inStr)
 {
-    char **ret = (char **)malloc(sizeof(char **));
+    char **ret = (char **)malloc(3000 * sizeof(char *));
     char **t = ret;
     char *p;
     p = strtok(inStr, " ");
@@ -18,7 +18,6 @@ char **parseStr(char *inStr)
         *t++ = p;
     }
     *t = (char *)NULL;
-
     return ret;
 }
 
@@ -55,18 +54,24 @@ int checkPipe(char *inStr)
 
 int parseRawCMD(char *inStr, char** left, char** right)    {
     int pipeIndex = checkPipe(inStr);
+    char *src = (char *)malloc(3000 * sizeof(char));
+    int n = strlen(inStr);
     if (pipeIndex == -1)    {
-        *left = inStr;
+        int t = n - 1;
+        while (t > -1 && inStr[t] == ' ')
+            t--;
+        strncpy(src, inStr, t + 1);
+        *left = src;
         return 1;
     }
-    int n = strlen(inStr);
-    char *src = (char *)malloc(2000 * sizeof(char));
+    
+    
     int t = pipeIndex - 1;
     while (t > -1 && inStr[t] == ' ')
         t--;
 
     strncpy(src, inStr, t + 1);
-    char *dest = (char *)malloc(2000 * sizeof(char));
+    char *dest = (char *)malloc(3000 * sizeof(char));
     int leftStart = pipeIndex + 1;
     while (leftStart < n && inStr[leftStart] == ' ')
         leftStart++;

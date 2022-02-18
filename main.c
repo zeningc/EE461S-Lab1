@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <readline/readline.h>
+#include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
 #include "token.h"
@@ -86,7 +87,6 @@ int main(void) {
             kill(-j->pgid, SIGCONT);
             continue;
         }
-
         char *cmd = (char *) malloc(3000 * sizeof(char));
         strcpy(cmd, inStr);
         // test if the cmd contains &
@@ -126,7 +126,7 @@ int main(void) {
                 executeTwoChild(left, right);
             exit(EXIT_FAILURE);
         } else {
-            job *currJob = addJob(stk, inStr, cpid, 0);
+            job *currJob = addJob(stk, cmd, cpid, 0);
             if (andSignIndex == -1) {//when the cmd is without & sign
                 int status = 0;
                 // wait for the child process to stop / exit

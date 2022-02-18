@@ -7,7 +7,8 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <stdio.h>
-
+#include <sys/types.h>
+#include <sys/wait.h>
 
 
 
@@ -39,7 +40,7 @@ void executeOneChild(char *inStr, int r, int rfd, int w, int wfd) {
             else
                 fd = open(*t, O_CREAT | O_WRONLY, 0644);
             if (fd == -1)   {
-//                perror("open() error");
+                printf("%s: No such file or directory\n", *t);
                 exit(EXIT_FAILURE);
             }
 
@@ -72,7 +73,6 @@ void executeOneChild(char *inStr, int r, int rfd, int w, int wfd) {
 void executeTwoChild(char *left, char *right) {
     int pipefd[2];
     pipe(pipefd);
-//    printf("%sX%sY\n", left, right);
     pid_t cpid = fork();
     if (cpid == 0)  {
         close(pipefd[0]);

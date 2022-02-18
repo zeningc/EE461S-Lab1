@@ -62,7 +62,7 @@ int parseRawCMD(char *inStr, char** left, char** right)    {
     int n = strlen(inStr);
     char *src = (char *)malloc(2000 * sizeof(char));
     int t = pipeIndex - 1;
-    while (t > 0 && inStr[t] == ' ')
+    while (t > -1 && inStr[t] == ' ')
         t--;
 
     strncpy(src, inStr, t + 1);
@@ -75,7 +75,6 @@ int parseRawCMD(char *inStr, char** left, char** right)    {
         rightStart--;
 
     strncpy(dest, inStr + leftStart, rightStart - leftStart + 1);
-//    printf("%sX%s\n", src, dest);
     *left = src;
     *right = dest;
     return 2;
@@ -92,21 +91,3 @@ int parseAndSign(char *inStr)   {
     return -1;
 }
 
-int checkCmd(char *inStr)   {
-    if (inStr[0] == '\0' || inStr == NULL) {
-        return 1;
-    }
-    return 0;
-}
-//
-//int main()  {
-//    char *src;
-//    char *dest;
-//    parseRawCommand("ls | wc", &src, &dest);
-//    printf("%s\n", src);
-//    printf("%s\n", dest);
-//
-//
-//    parseRawCommand("ls -l", &src,&dest);
-//    printf("%s", src);
-//}

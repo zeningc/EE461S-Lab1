@@ -87,7 +87,7 @@ void listAllJobs(stack *stk) {
         job *next = curr->prev;
         if (next == stk->head)
             ch = '+';
-        sprintf(ou, "[%d]%c\t%s\t%s\t%d\n", curr->id, ch, statusTbl[curr->status], curr->jStr, curr->pgid);
+        sprintf(ou, "[%d]%c\t%s\t%s\n", curr->id, ch, statusTbl[curr->status], curr->jStr);
         write(STDOUT_FILENO, ou, strlen(ou));
         curr = next;
     }
@@ -102,7 +102,7 @@ void listDoneJobs(stack *stk)   {
         if (curr->status == 2)  {
             if (next == stk->head)
                 ch = '+';
-            sprintf(ou, "[%d]%c\t%s\t%s\t%d\n", curr->id, ch, statusTbl[curr->status], curr->jStr, curr->pgid);
+            sprintf(ou, "[%d]%c\t%s\t%s\n", curr->id, ch, statusTbl[curr->status], curr->jStr);
             write(STDOUT_FILENO, ou, strlen(ou));
         }
         curr = next;

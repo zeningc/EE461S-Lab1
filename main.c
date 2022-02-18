@@ -11,6 +11,7 @@
 #include <signal.h>
 
 stack *stk;
+
 /*
  * handler will go before any wait()
  * */
@@ -20,7 +21,7 @@ static void sigchldHandler(int signum) {
     while ((pid = waitpid(-1, &status, WNOHANG)) > 0) {
         job *j = findByPgid(stk, pid);
         if (j != NULL) {
-            if (WEXITSTATUS(status) == EXIT_SUCCESS)    {
+            if (WEXITSTATUS(status) == EXIT_SUCCESS) {
                 done(j);
                 continue;
             }
@@ -32,28 +33,24 @@ static void sigchldHandler(int signum) {
 
 int main(void) {
     signal(SIGCHLD, sigchldHandler);
+    // to enable tcsetpgrp()
     signal(SIGTTOU, SIG_IGN);
+    signal(SIGINT, SIG_IGN);
+    signal(SIGTSTP, SIG_IGN);
     stk = createStack();
     while (1) {
-        // 0. Register signal handlers
-        signal(SIGINT, SIG_IGN);
-        signal(SIGTSTP, SIG_IGN);
-        // 1. Print the prompt (#)
+
+
         char *inStr = readline("# ");
-        // 2. Grab and parse the input - NOTE: Make sure to remove the newline
-        // character from the input string (otherwise, you'll pass "ls\n" to
-        // execvp and there is no executable called "ln\n" just "ls")
+        if (inStr == NULL)
+            exit(EXIT_SUCCESS);
 
-
-        // 3. Check for job control tokens (fg, bg, jobs, &) (for now just
-        // ignore those commands)
         listDoneJobs(stk);
         removeDoneJobs(stk);
         if (strcmp(inStr, "jobs") == 0) {
             listAllJobs(stk);
             continue;
         }
-
 
         if (strcmp(inStr, "fg") == 0) {
             job *j = getFirstUndoneJob(stk);
@@ -66,11 +63,10 @@ int main(void) {
             }
             grantTerminalControl(j->pgid);
             int status = 0;
-            // will catch sigint as well
+
+            // wait for the child to exit / stop
             waitpid(j->pgid, &status, WUNTRACED);
-            /*
-             * after the child process exit, should take control of stdin stdout stderr again
-             * */
+            // after the child process exit, should take control of stdin stdout stderr again
             grantTerminalControl(getpid());
             int exitSig = WSTOPSIG(status);
             if (exitSig == SIGTSTP) {
@@ -90,33 +86,37 @@ int main(void) {
             kill(-j->pgid, SIGCONT);
             continue;
         }
-        if (checkCmd(inStr) != 0)
-            continue;
-        char *cmd = (char *) malloc(2000 * sizeof(char));
+
+        char *cmd = (char *) malloc(3000 * sizeof(char));
         strcpy(cmd, inStr);
+        // test if the cmd contains &
         int andSignIndex = parseAndSign(inStr);
         if (andSignIndex != -1) {
             *(cmd + andSignIndex) = '\0';
         }
 
 
-        // 4. Determine the number of children processes to create (number of
-        // times to call fork) (call fork once per child) (right now this will
-        // just be one)
         char *left;
         char *right;
+        // assign left and right if there is pipe, only assign left if there is no pipe
+        // return the number of command
         int cmdCnt = parseRawCMD(cmd, &left, &right);
-        // 5. Execute the commands using execvp or execlp - e.g. execOneChild()
-        // or execTwoChildren()
-        signal(SIGINT, SIG_DFL);
-        signal(SIGTSTP, SIG_DFL);
+
+        if (left == NULL || *left == '\0')
+            continue;
+
         pid_t cpid = fork();
         if (cpid == 0) {
+            // reset the signal handlers
             signal(SIGCHLD, SIG_DFL);
+            signal(SIGINT, SIG_DFL);
+            signal(SIGTSTP, SIG_DFL);
+
             if (setpgid(0, 0) != 0) {
                 perror("setpgid() error");
             }
-            if (andSignIndex == -1) {
+
+            if (andSignIndex == -1) { // if the cmd tend to run in fg
                 grantTerminalControl(getpid());
             }
 
@@ -127,16 +127,11 @@ int main(void) {
             exit(EXIT_FAILURE);
         } else {
             job *currJob = addJob(stk, inStr, cpid, 0);
-            signal(SIGINT, SIG_IGN);
-            signal(SIGTSTP, SIG_IGN);
-            if (andSignIndex == -1) {
-                //when the cmd is without & sign
+            if (andSignIndex == -1) {//when the cmd is without & sign
                 int status = 0;
-                // wait for all child process to terminate/stop
+                // wait for the child process to stop / exit
                 waitpid(cpid, &status, WUNTRACED);
-                /*
-                 * after the child process exit, should take control of stdin stdout stderr again
-                 * */
+                // after the child process exit, should take control of stdin stdout stderr again
                 grantTerminalControl(getpid());
                 int exitSig = WSTOPSIG(status);
                 if (exitSig == SIGTSTP) {
@@ -146,8 +141,5 @@ int main(void) {
                 removeFromStack(currJob);
             }
         }
-        // 6. NOTE: There are other steps for job related stuff but good luck
-        // we won't spell it out for you
     }
-
 }

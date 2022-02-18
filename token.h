@@ -9,5 +9,4 @@ int checkPipe(char *inStr);
 int parseRawCMD(char *inStr, char** left, char** right);
 char **parseStr(char *inStr);
 int parseAndSign(char *inStr);
-int checkCmd(char *inStr);
 #endif //LAB1_TOKEN_H
